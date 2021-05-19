@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const oracledb = require('oracledb')
-const  {set,Conexion}  = require('../database/config.js');
+const  {set, local} = require('../database/config.js');
 const empty = require('is-empty');
 
 
@@ -31,8 +31,13 @@ async function Transaciones (req,res) {
           const codigo_canal_facturacion = nemonicoCanalFacturacion == "CAJA" ? 1 : 0;
           const {codigoSucursal,codigoCaja,numeroPuntoEmision } = caja;
           let conn
+          let db
           try {
+            // db = await oracledb.getConnection(local)
+            // const syst = await db.execute(`SELECT * FROM FAC_PRE_TRANSACCIONES`);
+            // console.log(syst)
             conn = await oracledb.getConnection(set)
+            // oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
             const result = await conn.execute(`select secuencia_usuario,codigo_empresa,codigo_usuario,es_activo,secuencia_usuario_ingreso,usuario_ingreso from latino_owner.dafx_usuarios_sistema where codigo_empresa = :e and secuencia_usuario = :t`,{e: codigoEmpresa, t: secuenciaUsuario});
             const secuencia_usuario = result.rows[0][0]
             const codigo_empresa =result.rows[0][1]
@@ -50,20 +55,27 @@ async function Transaciones (req,res) {
               let dia_actual = fecha.getDate();
               let anio_actual = fecha.getFullYear()
               let fecha_ingreso = dia_actual+"/0"+mes_actual+"/"+anio_actual;
-              console.log(codigo_pre_transaccion,codigo_empresa,codigoSucursal,codigoCaja,numeroPuntoEmision,secuencia_usuario,codigo_usuario,tipoPreTransaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso);
-  
-              const transacion = await conn.execute(`insert into latino_owner.fac_pre_transacciones (codigo_pre_transaccion,codigo_empresa,codigo_sucursal,codigo_caja,numero_punto_emision,secuencia_usuario,codigo_usuario,tipo_pre_transaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso)values(:codigo_pre_transaccion, :codigo_empresa, :codigo_sucursal, :codigo_cajan, :numero_punto_emision, :secuencia_usuario, :codigo_usuario, :tipo_pre_transaccion, :codigo_canal_facturacion, :es_activo, :secuencia_usuario_ingreso, :usuario_ingreso, :fecha_ingreso)`,
-              {codigo_pre_transaccion: codigo_pre_transaccion, codigo_empresa: codigo_empresa, codigoSucursal: codigoSucursal, codigoCaja: codigoCaja, numeroPuntoEmision: numeroPuntoEmision, secuencia_usuario: secuencia_usuario, codigo_usuario: codigo_usuario, tipoPreTransaccion: tipoPreTransaccion, codigo_canal_facturacion: codigo_canal_facturacion, es_activo: es_activo, secuencia_usuario_ingreso: secuencia_usuario_ingreso, usuario_ingreso: usuario_ingreso, fecha_ingreso: fecha_ingreso});
-  
-              console.log(transacion);
-              res.json({
-                "code": 200,
-                "success": true,
-                "message": "resultado exitoso",
-                "data": {
-                    result,
+              //console.log("INSERT ",codigo_pre_transaccion,codigo_empresa,codigoSucursal,codigoCaja,numeroPuntoEmision,secuencia_usuario,codigo_usuario,tipoPreTransaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso);
+              // let sqlt = `insert into latino_owner.fac_pre_transacciones (codigo_pre_transaccion,codigo_empresa,codigo_sucursal,codigo_caja,numero_punto_emision,secuencia_usuario,codigo_usuario,tipo_pre_transaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso) values (${codigo_pre_transaccion}, ${codigo_empresa}, ${codigo_sucursal}, ${codigo_cajan},${numero_punto_emision}, ${secuencia_usuario}, ${codigo_usuario}, ${tipo_pre_transaccion}, ${codigo_canal_facturacion}, ${es_activo}, ${secuencia_usuario_ingreso}, ${usuario_ingreso}, ${fecha_ingreso})`;
+              // console.log(`${sqlt}`);
+              // let sqllocal = "insert into FAC_PRE_TRANSACCIONES (codigo_pre_transaccion,codigo_empresa,codigo_sucursal,codigo_caja,numero_punto_emision,secuencia_usuario,codigo_usuario,tipo_pre_transaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso) values (4137, 1, 1, 12, 2, 44, 'ABARRIONUEVO', 'COTIZACION' ,1 ,'S', 1, 'ADMIN', '19/05/2021')";
+              // const transacion = await db.execute(sqllocal);
+              try {
+                const idPreTransaccion = await conn.execute(`insert into latino_owner.fac_pre_transacciones (codigo_pre_transaccion,codigo_empresa,codigo_sucursal,codigo_caja,numero_punto_emision,secuencia_usuario,codigo_usuario,tipo_pre_transaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso) values (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)`,
+                [codigo_pre_transaccion,codigo_empresa,codigoSucursal,codigoCaja,numeroPuntoEmision,secuencia_usuario,codigo_usuario,tipoPreTransaccion,codigo_canal_facturacion,es_activo,secuencia_usuario_ingreso,usuario_ingreso,fecha_ingreso]);
+                if(idPreTransaccion.lastRowid){
+                  res.json({
+                    "code": 200,
+                    "success": true,
+                    "message": "resultado exitoso",
+                    "data": {
+                      idPreTransaccion:idPreTransaccion.lastRowid,
+                    }
+                  })
                 }
-              })
+              } catch (error) {
+                console.log(error)
+              }              
             }else{
               res.json({
                 "code": 401,
@@ -108,9 +120,7 @@ async function Transaciones (req,res) {
         "message": "valores de transacion no permitido",
         "errorData": []
       })
-    
-    }
-      
+    } 
     }else{
         res.json({
             "code": 400,
